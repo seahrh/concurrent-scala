@@ -6,5 +6,19 @@ lazy val root = (project in file(".")).
       version      := "1.0.0"
     )),
     name := "retry",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.3"
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % versions.scalatest
+    )
   )
+lazy val versions = new {
+  val scalatest = "3.0.4"
+}
+wartremoverErrors ++= Warts.allBut(
+  Wart.Enumeration,
+  Wart.Equals,
+  Wart.ToString,
+  Wart.Throw,
+  Wart.DefaultArguments,
+  Wart.Return,
+  Wart.TraversableOps
+)
