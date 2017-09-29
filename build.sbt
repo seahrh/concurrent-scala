@@ -7,11 +7,13 @@ lazy val root = (project in file(".")).
     )),
     name := "retry",
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % versions.scalatest
+      "org.scalatest" %% "scalatest" % versions.scalatest % Test,
+      "org.mockito" % "mockito-core" % versions.mockito % Test
     )
   )
 lazy val versions = new {
   val scalatest = "3.0.4"
+  val mockito = "2.10.0"
 }
 wartremoverErrors ++= Warts.allBut(
   Wart.Enumeration,
@@ -22,5 +24,6 @@ wartremoverErrors ++= Warts.allBut(
   Wart.Return,
   Wart.TraversableOps,
   Wart.ImplicitParameter,
-  Wart.NonUnitStatements
+  Wart.NonUnitStatements,
+  Wart.Var
 )

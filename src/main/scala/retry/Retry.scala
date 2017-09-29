@@ -23,7 +23,7 @@ object Retry {
     *                        Default is an exponential backoff at 100 milliseconds steps
     * @param ignoreThrowable if you want to stop retrying on a particular exception
     * @param block           a block of code to retry
-    * @param ctx             an execution context where to execute the block
+    * @param executionContext             an execution context where to execute the block
     * @return an eventual Future succeeded with the value computed or failed with one of:
     *         `TooManyRetriesException`
     *         if there were too many retries without an exception being caught.
@@ -38,10 +38,10 @@ object Retry {
                backoff: (Int) => Duration = exponentialBackoff,
                ignoreThrowable: Throwable => Boolean = ignore)
               (block: => T)
-              (implicit ctx: ExecutionContext): Future[T] = {
+              (implicit executionContext: ExecutionContext): Future[T] = {
 
     class TooManyRetriesException extends Exception("too many retries without exception")
-    class DeadlineExceededException extends Exception("deadline exceded")
+    class DeadlineExceededException extends Exception("deadline exceeded")
 
     val p = Promise[T]()
 
