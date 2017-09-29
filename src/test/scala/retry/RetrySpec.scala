@@ -13,7 +13,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
     def inc(i: Int): Int = i + 1
   }
 
-  "retry" should "execute block only once if first attempt passes" in {
+  "number of attempts" should "execute block only once if first attempt passes" in {
     val bar = mock[Bar]
     retry[Int](maxRetry = 1) {
       bar.inc(1)
@@ -23,23 +23,25 @@ class RetrySpec extends FlatSpec with MockitoSugar {
 
   it should "execute block 2 times if first attempt fails" in {
     val bar = mock[Bar]
-    when(bar.inc(1))
+    def foo: Int = bar.inc(1)
+    when(foo)
       .thenThrow(new RuntimeException)
-      .thenReturn(2)
+      .thenCallRealMethod()
     retry[Int](maxRetry = 1) {
-      bar.inc(1)
+      foo
     }
     verify(bar, times(2)).inc(_)
   }
 
   it should "execute block 3 times if earlier attempts fail" in {
     val bar = mock[Bar]
-    when(bar.inc(1))
+    def foo: Int = bar.inc(1)
+    when(foo)
       .thenThrow(new RuntimeException)
       .thenThrow(new RuntimeException)
-      .thenReturn(2)
+      .thenCallRealMethod()
     retry[Int](maxRetry = 2) {
-      bar.inc(1)
+      foo
     }
     verify(bar, times(3)).inc(_)
   }
