@@ -1,12 +1,17 @@
 package retry
 
 import scala.annotation.tailrec
-import scala.concurrent._
+import scala.concurrent.{Await, ExecutionContext, Future, Promise, blocking}
 import scala.concurrent.duration.{Deadline, Duration, DurationLong}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object Retry {
+
+  class TooManyRetriesException extends Exception("too many retries without exception")
+
+  class DeadlineExceededException extends Exception("deadline exceeded")
+
   /**
     * exponential back off for retry
     */
@@ -17,13 +22,13 @@ object Retry {
   /**
     * retry a particular block that can fail
     *
-    * @param maxRetry        how many times to retry before to giveup
-    * @param deadline        how long to retry before giving up; default None
-    * @param backoff         a back-off function that returns a Duration after which to retry.
-    *                        Default is an exponential backoff at 100 milliseconds steps
-    * @param ignoreThrowable if you want to stop retrying on a particular exception
-    * @param block           a block of code to retry
-    * @param executionContext             an execution context where to execute the block
+    * @param maxRetry         how many times to retry before to giveup
+    * @param deadline         how long to retry before giving up; default None
+    * @param backoff          a back-off function that returns a Duration after which to retry.
+    *                         Default is an exponential backoff at 100 milliseconds steps
+    * @param ignoreThrowable  if you want to stop retrying on a particular exception
+    * @param block            a block of code to retry
+    * @param executionContext an execution context where to execute the block
     * @return an eventual Future succeeded with the value computed or failed with one of:
     *         `TooManyRetriesException`
     *         if there were too many retries without an exception being caught.
@@ -39,10 +44,6 @@ object Retry {
                ignoreThrowable: Throwable => Boolean = ignore)
               (block: => T)
               (implicit executionContext: ExecutionContext): Future[T] = {
-
-    class TooManyRetriesException extends Exception("too many retries without exception")
-    class DeadlineExceededException extends Exception("deadline exceeded")
-
     val p = Promise[T]()
 
     @tailrec
