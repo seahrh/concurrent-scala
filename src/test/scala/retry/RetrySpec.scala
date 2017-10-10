@@ -35,13 +35,13 @@ class RetrySpec extends FlatSpec with MockitoSugar {
   }
 
   it should "return value if block succeeds with retry" in {
-    pending
     val bar = mock[Bar]
     val maxRetry = 1
 
+    def foo: Int = bar.inc(1)
 
     when(bar.inc(1))
-      .thenThrow(new RuntimeException)
+      .thenThrow(new IllegalStateException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry) {
       bar.inc(1)
@@ -49,7 +49,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
     assertResult(2)(Await.result(f, 10 second))
   }
 
-  it should "throw TooManyRetriesException if block fails without retry" in {
+  it should "throw the last encountered exception if block fails without retry" in {
     val bar = mock[Bar]
     val maxRetry = 0
 
@@ -59,7 +59,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
     val f: Future[Int] = retry[Int](maxRetry) {
       foo
     }
-    assertThrows[TooManyRetriesException](Await.result(f, 10 second))
+    assertThrows[RuntimeException](Await.result(f, 10 second))
   }
 
   it should "throw TooManyRetriesException if block fails with retry" in {

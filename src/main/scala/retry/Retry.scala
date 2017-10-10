@@ -17,7 +17,7 @@ object Retry {
     */
   private def exponentialBackoff(r: Int): Duration = scala.math.pow(2, r).round * 100 milliseconds
 
-  private def ignore(t: Throwable): Boolean = true
+  private def doNotGiveUp(t: Throwable): Boolean = false
 
   /**
     * retry a particular block that can fail
@@ -26,7 +26,7 @@ object Retry {
     * @param deadline         how long to retry before giving up; default None
     * @param backoff          a back-off function that returns a Duration after which to retry.
     *                         Default is an exponential backoff at 100 milliseconds steps
-    * @param ignoreThrowable  if you want to stop retrying on a particular exception
+    * @param giveUpOnThrowable  if you want to stop retrying on a particular exception
     * @param block            a block of code to retry
     * @param executionContext an execution context where to execute the block
     * @return an eventual Future succeeded with the value computed or failed with one of:
@@ -41,7 +41,7 @@ object Retry {
   def retry[T](maxRetry: Int,
                deadline: Option[Deadline] = None,
                backoff: (Int) => Duration = exponentialBackoff,
-               ignoreThrowable: Throwable => Boolean = ignore)
+               giveUpOnThrowable: Throwable => Boolean = doNotGiveUp)
               (block: => T)
               (implicit executionContext: ExecutionContext): Future[T] = {
     val p = Promise[T]()
@@ -54,13 +54,13 @@ object Retry {
       val isOverdue: Boolean = deadline.fold(false) {
         _.isOverdue()
       }
-      if (maxRetry == retryCnt || isOverdue) {
+      if (maxRetry < retryCnt || isOverdue) {
         exception match {
           case Some(t) =>
             p failure t
           case None if isOverdue =>
             p failure new DeadlineExceededException
-          case None =>
+          case _ =>
             p failure new TooManyRetriesException
         }
         None
@@ -77,7 +77,7 @@ object Retry {
           case Success(v) =>
             p success v
             Option(v)
-          case Failure(t) if ignoreThrowable(t) =>
+          case Failure(t) if !giveUpOnThrowable(t) =>
             blocking {
               val interval = backoff(retryCnt).toMillis
               Thread.sleep(interval)
