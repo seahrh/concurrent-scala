@@ -54,7 +54,8 @@ object Retry {
       val isOverdue: Boolean = deadline.fold(false) {
         _.isOverdue()
       }
-      if (maxRetry < retryCnt || isOverdue) {
+      val isTooManyRetries: Boolean = maxRetry >= 0 && maxRetry < retryCnt
+      if (isTooManyRetries || isOverdue) {
         exception match {
           case Some(t) =>
             p failure t
