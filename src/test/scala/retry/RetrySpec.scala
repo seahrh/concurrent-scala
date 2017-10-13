@@ -1,18 +1,18 @@
 package retry
 
 import Retry._
-import org.mockito.Mockito.{times, verify, when}
+import org.mockito.Mockito.{atLeast, times, verify, when, atMost}
 import org.mockito.ArgumentMatchers.anyInt
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.{Duration, DurationLong, fromNow}
+import scala.concurrent.duration.{Deadline, Duration, DurationLong, fromNow}
 import scala.language.postfixOps
 
 class RetrySpec extends FlatSpec with MockitoSugar {
-  private val atMost: Duration = 4 second
+  private val waitAtMost: Duration = 4 second
 
   class Bar {
     def inc(i: Int): Int = i + 1
@@ -31,7 +31,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
 
     when(foo).thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertResult(2)(Await.result(f, atMost))
+    assertResult(2)(Await.result(f, waitAtMost))
   }
 
   it should "return value if block succeeds with retry" in {
@@ -44,7 +44,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
       .thenThrow(new IllegalStateException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertResult(2)(Await.result(f, atMost))
+    assertResult(2)(Await.result(f, waitAtMost))
   }
 
   it should "throw the last encountered exception if block fails without retry" in {
@@ -55,7 +55,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
 
     when(foo).thenThrow(new RuntimeException)
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertThrows[RuntimeException](Await.result(f, atMost))
+    assertThrows[RuntimeException](Await.result(f, waitAtMost))
   }
 
   it should "throw the last encountered exception if block fails with retry" in {
@@ -66,7 +66,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
 
     when(foo).thenThrow(new RuntimeException)
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertThrows[RuntimeException](Await.result(f, atMost))
+    assertThrows[RuntimeException](Await.result(f, waitAtMost))
   }
 
   "Number of Attempts" should "execute block exactly once if first attempt passes" in {
@@ -80,7 +80,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
     // Do not use callback as it is non-blocking,
     // any exception thrown results in test pass.
     // Instead, block till future completes.
-    Await.ready(f, atMost)
+    Await.ready(f, waitAtMost)
     verify(bar, times(1)).inc(anyInt)
   }
 
@@ -94,7 +94,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
       .thenThrow(new RuntimeException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    Await.ready(f, atMost)
+    Await.ready(f, waitAtMost)
     verify(bar, times(maxRetry + 1)).inc(anyInt)
   }
 
@@ -109,7 +109,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
       .thenThrow(new RuntimeException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    Await.ready(f, atMost)
+    Await.ready(f, waitAtMost)
     verify(bar, times(maxRetry + 1)).inc(anyInt)
   }
 
@@ -124,7 +124,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
       .thenThrow(new RuntimeException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertThrows[RuntimeException](Await.result(f, atMost))
+    assertThrows[RuntimeException](Await.result(f, waitAtMost))
     verify(bar, times(maxRetry + 1)).inc(anyInt)
   }
 
@@ -138,7 +138,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
       .thenThrow(new RuntimeException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    Await.ready(f, atMost)
+    Await.ready(f, waitAtMost)
     verify(bar, times(1)).inc(anyInt)
   }
 
@@ -154,25 +154,35 @@ class RetrySpec extends FlatSpec with MockitoSugar {
       .thenThrow(new RuntimeException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    Await.ready(f, atMost)
+    Await.ready(f, waitAtMost)
     verify(bar, times(4)).inc(anyInt) // scalastyle:ignore
   }
 
   "Deadline" should "not be exceeded by retries" in {
-    pending
     val bar = mock[Bar]
-    val maxRetry = 3
+    val maxRetry = -1
+
+    def deadline: Option[Deadline] = Option(400 millisecond fromNow)
 
     def foo: Int = bar.incWithDelay(1)
 
-    when(foo)
-      .thenThrow(new RuntimeException)
-      .thenThrow(new RuntimeException)
-      .thenThrow(new RuntimeException)
-      .thenCallRealMethod()
-    retry[Int](maxRetry, deadline = Option(1300 millisecond fromNow)) {
-      foo
-    }
-    verify(bar, times(4)).incWithDelay(_) // scalastyle:ignore
+    when(foo).thenThrow(new RuntimeException)
+    val f: Future[Int] = retry[Int](maxRetry, deadline)(foo)
+    Await.ready(f, waitAtMost)
+    verify(bar, atLeast(3)).incWithDelay(anyInt)
+    verify(bar, atMost(4)).incWithDelay(anyInt) // scalastyle:ignore
+  }
+
+  it should "throw encountered exception (instead of DeadlineExceededException) if exceeded" in {
+    val bar = mock[Bar]
+    val maxRetry = -1
+
+    def deadline: Option[Deadline] = Option(50 millisecond fromNow)
+
+    def foo: Int = bar.inc(1)
+
+    when(foo).thenThrow(new RuntimeException)
+    val f: Future[Int] = retry[Int](maxRetry, deadline)(foo)
+    assertThrows[RuntimeException](Await.result(f, waitAtMost))
   }
 }
