@@ -15,20 +15,24 @@ object Retry {
   /**
     * exponential back off for retry
     */
-  private def exponentialBackoff(r: Int): Duration = scala.math.pow(2, r).round * 100 milliseconds
+  def exponentialBackoff(retryCnt: Int): Duration = {
+    scala.math.pow(2, retryCnt).round * 100 milliseconds
+  }
+
+  //TODO CappedAtOneHour, WithJitter
 
   private def doNotGiveUp(t: Throwable): Boolean = false
 
   /**
     * retry a particular block that can fail
     *
-    * @param maxRetry         how many times to retry before to giveup
-    * @param deadline         how long to retry before giving up; default None
-    * @param backoff          a back-off function that returns a Duration after which to retry.
-    *                         Default is an exponential backoff at 100 milliseconds steps
-    * @param giveUpOnThrowable  if you want to stop retrying on a particular exception
-    * @param block            a block of code to retry
-    * @param executionContext an execution context where to execute the block
+    * @param maxRetry          how many times to retry before to giveup
+    * @param deadline          how long to retry before giving up; default None
+    * @param backoff           a back-off function that returns a Duration after which to retry.
+    *                          Default is an exponential backoff at 100 milliseconds steps
+    * @param giveUpOnThrowable if you want to stop retrying on a particular exception
+    * @param block             a block of code to retry
+    * @param executionContext  an execution context where to execute the block
     * @return an eventual Future succeeded with the value computed or failed with one of:
     *         `TooManyRetriesException`
     *         if there were too many retries without an exception being caught.
