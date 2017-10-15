@@ -1,14 +1,14 @@
 package retry
 
-import Retry._
-import org.mockito.Mockito.{atLeast, times, verify, when, atMost}
 import org.mockito.ArgumentMatchers.anyInt
+import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
+import retry.Retry._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Deadline, Duration, DurationLong, fromNow}
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
 class RetrySpec extends FlatSpec with MockitoSugar {
@@ -41,32 +41,44 @@ class RetrySpec extends FlatSpec with MockitoSugar {
     def foo: Int = bar.inc(1)
 
     when(foo)
-      .thenThrow(new IllegalStateException)
+      .thenThrow(new RuntimeException)
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
     assertResult(2)(Await.result(f, waitAtMost))
   }
 
-  it should "throw the last encountered exception if block fails without retry" in {
+  it should "throw TooManyRetriesException (with cause) if block fails and no retry is allowed" in {
     val bar = mock[Bar]
     val maxRetry = 0
 
     def foo: Int = bar.inc(1)
 
-    when(foo).thenThrow(new RuntimeException)
+    when(foo).thenThrow(new IllegalStateException)
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertThrows[RuntimeException](Await.result(f, waitAtMost))
+    val caught = intercept[TooManyRetriesException](Await.result(f, waitAtMost))
+    assertResult(true) {
+      caught.getCause match {
+        case _: IllegalStateException => true
+        case _ => false
+      }
+    }
   }
 
-  it should "throw the last encountered exception if block fails with retry" in {
+  it should "throw TooManyRetriesException (with cause) if all retries are used up" in {
     val bar = mock[Bar]
     val maxRetry = 1
 
     def foo: Int = bar.inc(1)
 
-    when(foo).thenThrow(new RuntimeException)
+    when(foo).thenThrow(new IllegalStateException)
     val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertThrows[RuntimeException](Await.result(f, waitAtMost))
+    val caught = intercept[TooManyRetriesException](Await.result(f, waitAtMost))
+    assertResult(true) {
+      caught.getCause match {
+        case _: IllegalStateException => true
+        case _ => false
+      }
+    }
   }
 
   "Number of Attempts" should "execute block exactly once if first attempt passes" in {
@@ -110,21 +122,6 @@ class RetrySpec extends FlatSpec with MockitoSugar {
       .thenCallRealMethod()
     val f: Future[Int] = retry[Int](maxRetry)(foo)
     Await.ready(f, waitAtMost)
-    verify(bar, times(maxRetry + 1)).inc(anyInt)
-  }
-
-  it should "not exceed max #retries and return last encountered exception" in {
-    val bar = mock[Bar]
-    val maxRetry = 1
-
-    def foo: Int = bar.inc(1)
-
-    when(foo)
-      .thenThrow(new RuntimeException)
-      .thenThrow(new RuntimeException)
-      .thenCallRealMethod()
-    val f: Future[Int] = retry[Int](maxRetry)(foo)
-    assertThrows[RuntimeException](Await.result(f, waitAtMost))
     verify(bar, times(maxRetry + 1)).inc(anyInt)
   }
 
@@ -173,7 +170,7 @@ class RetrySpec extends FlatSpec with MockitoSugar {
     verify(bar, atMost(4)).incWithDelay(anyInt) // scalastyle:ignore
   }
 
-  it should "throw encountered exception (instead of DeadlineExceededException) if exceeded" in {
+  it should "throw DeadlineExceededException (with cause) if exceeded" in {
     val bar = mock[Bar]
     val maxRetry = -1
 
@@ -181,8 +178,14 @@ class RetrySpec extends FlatSpec with MockitoSugar {
 
     def foo: Int = bar.inc(1)
 
-    when(foo).thenThrow(new RuntimeException)
+    when(foo).thenThrow(new IllegalStateException)
     val f: Future[Int] = retry[Int](maxRetry, deadline)(foo)
-    assertThrows[RuntimeException](Await.result(f, waitAtMost))
+    val caught = intercept[DeadlineExceededException](Await.result(f, waitAtMost))
+    assertResult(true) {
+      caught.getCause match {
+        case _: IllegalStateException => true
+        case _ => false
+      }
+    }
   }
 }

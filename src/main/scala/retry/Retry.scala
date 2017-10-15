@@ -8,9 +8,9 @@ import scala.util.{Failure, Success, Try}
 
 object Retry {
 
-  class TooManyRetriesException extends Exception("too many retries without exception")
+  class TooManyRetriesException extends RuntimeException
 
-  class DeadlineExceededException extends Exception("deadline exceeded")
+  class DeadlineExceededException extends RuntimeException
 
   /**
     * exponential back off for retry
@@ -34,8 +34,6 @@ object Retry {
     *         if there were too many retries without an exception being caught.
     *         Probably impossible if you pass decent parameters
     *         `DeadlineExceededException` if the retry didn't succeed before the provided deadline
-    *         `TimeoutException` if you provide a deadline
-    *         and the block takes too long to execute
     *         `Throwable` the last encountered exception
     */
   def retry[T](maxRetry: Int,
@@ -55,15 +53,19 @@ object Retry {
         _.isOverdue()
       }
       val isTooManyRetries: Boolean = maxRetry >= 0 && maxRetry < retryCnt
-      if (isTooManyRetries || isOverdue) {
-        exception match {
-          case Some(t) =>
-            p failure t
-          case None if isOverdue =>
-            p failure new DeadlineExceededException
-          case _ =>
-            p failure new TooManyRetriesException
+      if (isOverdue) {
+        val e = new DeadlineExceededException
+        for (cause <- exception) {
+          e.initCause(cause)
         }
+        p failure e
+        None
+      } else if (isTooManyRetries) {
+        val e = new TooManyRetriesException
+        for (cause <- exception) {
+          e.initCause(cause)
+        }
+        p failure e
         None
       } else {
         Try {
