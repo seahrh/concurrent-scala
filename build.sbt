@@ -13,7 +13,7 @@ lazy val root = (project in file(".")).
   )
 lazy val versions = new {
   val scalatest = "3.0.4"
-  val mockito = "2.10.0"
+  val mockito = "2.11.0"
 }
 wartremoverErrors ++= Warts.allBut(
   Wart.Enumeration,
