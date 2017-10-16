@@ -4,7 +4,7 @@ import scala.annotation.tailrec
 import scala.concurrent.{Await, ExecutionContext, Future, Promise, blocking}
 import scala.concurrent.duration.{Deadline, Duration, DurationLong}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success, Try, Random}
 
 object Retry {
 
@@ -12,14 +12,27 @@ object Retry {
 
   class DeadlineExceededException extends RuntimeException
 
+  private val minBackoff: Duration = 100 milliseconds
+
+  private def exponentialBackoffMultiplier(retryCnt: Int): Long = scala.math.pow(2, retryCnt).round
+
   /**
     * exponential back off for retry
     */
   def exponentialBackoff(retryCnt: Int): Duration = {
-    scala.math.pow(2, retryCnt).round * 100 milliseconds
+    exponentialBackoffMultiplier(retryCnt) * minBackoff
   }
 
-  //TODO CappedAtOneHour, WithJitter
+  def exponentialBackoffAtMostOneHour(retryCnt: Int): Duration = {
+    val max: Duration = 1 hours
+    val d: Duration = exponentialBackoff(retryCnt)
+    if (d < max) d else max
+  }
+
+  def exponentialBackoffWithJitter(retryCnt: Int): Duration = {
+    val jitter: Duration = Random.nextFloat * minBackoff
+    exponentialBackoffMultiplier(retryCnt) * (minBackoff + jitter)
+  }
 
   private def doNotGiveUp(t: Throwable): Boolean = false
 
