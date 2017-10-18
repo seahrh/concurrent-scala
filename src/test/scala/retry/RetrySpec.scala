@@ -23,6 +23,11 @@ class RetrySpec extends FlatSpec with MockitoSugar {
     }
   }
 
+  private def giveUpOnIllegalArgumentException(t: Throwable): Boolean = t match {
+    case _: IllegalArgumentException => true
+    case _ => false
+  }
+
   "Future" should "return value if block succeeds without retry" in {
     val bar = mock[Bar]
     val maxRetry = 1
@@ -187,5 +192,53 @@ class RetrySpec extends FlatSpec with MockitoSugar {
         case _ => false
       }
     }
+  }
+
+  "Give Up On Selected Exceptions" should "not retry if selected exception is seen in 1st attempt" in {
+    val bar = mock[Bar]
+    val maxRetry = 10
+
+    def foo: Int = bar.inc(1)
+
+    when(foo).thenThrow(new IllegalArgumentException)
+    val f: Future[Int] = retry[Int](
+      maxRetry,
+      giveUpOnThrowable = giveUpOnIllegalArgumentException
+    )(foo)
+    Await.ready(f, waitAtMost)
+    verify(bar, times(1)).inc(anyInt)
+  }
+
+  it should "retry until selected exception is seen" in {
+    val bar = mock[Bar]
+    val maxRetry = 10
+
+    def foo: Int = bar.inc(1)
+
+    when(foo)
+      .thenThrow(new IllegalStateException)
+      .thenThrow(new IllegalArgumentException)
+    val f: Future[Int] = retry[Int](
+      maxRetry,
+      giveUpOnThrowable = giveUpOnIllegalArgumentException
+    )(foo)
+    Await.ready(f, waitAtMost)
+    verify(bar, times(2)).inc(anyInt)
+  }
+
+  it should "retry normally if selected exception is never seen" in {
+    val bar = mock[Bar]
+    val maxRetry = 2
+
+    def foo: Int = bar.inc(1)
+
+    when(foo).thenThrow(new IllegalStateException)
+
+    val f: Future[Int] = retry[Int](
+      maxRetry,
+      giveUpOnThrowable = giveUpOnIllegalArgumentException
+    )(foo)
+    Await.ready(f, waitAtMost)
+    verify(bar, times(3)).inc(anyInt)
   }
 }
