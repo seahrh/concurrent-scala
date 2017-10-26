@@ -11,10 +11,18 @@ Using `scala.concurrent`, with no other dependencies. Based on [Mortimerp9's gis
 
 ## Code Examples
 
-### You don't care about any returned value
+### You don't care about the result
 ```scala
 retry[Unit](maxRetry = 10){
-  send(email)
+  send(email) // return type is Unit
 }
 ```
-The `retry` method is of type `Unit` because the inner code block does not return any value. You *must* set the maximum number of retries, given in the `maxRetry` argument.
+You *must* set the maximum number of retries, given in the `maxRetry` argument.
+
+### You care about the result
+```scala
+import scala.concurrent.Future
+val f: Future[Double] = retry[Double](maxRetry = 10){
+  api.get("stock/price/goog")
+}
+```
