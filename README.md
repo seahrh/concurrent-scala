@@ -26,3 +26,13 @@ val f: Future[Double] = retry[Double](maxRetry = 10){
   api.get("stock/price/goog")
 }
 ```
+
+### Stop retry after a time period has elapsed
+`deadline` is an optional argument of type `Option[Deadline]`. Default value is `None`.
+```scala
+import scala.concurrent.duration.{Deadline, DurationInt, fromNow}
+retry[Unit](
+  maxRetry = 10,
+  deadline = Option(2 hour fromNow)
+)(expensiveOperation)
+```
