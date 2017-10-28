@@ -1,10 +1,10 @@
-package retry
+package com.sgcharts.concurrent
 
+import com.sgcharts.concurrent.Retry._
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
-import retry.Retry._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Deadline, Duration, DurationLong, fromNow}

@@ -1,11 +1,11 @@
 lazy val root = (project in file(".")).
   settings(
     inThisBuild(List(
-      organization := "retry",
-      scalaVersion := "2.12.3",
+      organization := "com.sgcharts",
+      scalaVersion := "2.12.4",
       version      := "1.0.0"
     )),
-    name := "retry",
+    name := "concurrent",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % versions.scalatest % Test,
       "org.mockito" % "mockito-core" % versions.mockito % Test

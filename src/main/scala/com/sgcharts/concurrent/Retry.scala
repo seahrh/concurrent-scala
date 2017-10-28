@@ -1,4 +1,4 @@
-package retry
+package com.sgcharts.concurrent
 
 import scala.annotation.tailrec
 import scala.concurrent.{Await, ExecutionContext, Future, Promise, blocking}
