@@ -32,5 +32,25 @@ import scala.concurrent.duration.{Deadline, DurationInt, fromNow}
 retry[Unit](
   maxRetry = 10,
   deadline = Option(2 hour fromNow)
-)(expensiveOperation)
+){
+  send(email)
+}
+```
+### Customize the backoff function
+The default backoff function is unbounded and grows exponentially with the number of retries, in 100 millisecond steps. Alternatively, you can define your own backoff function and pass it in the `backoff` argument.
+
+The backoff function takes a `retryCnt` argument of type `Int` and returns a `scala.concurrent.duration.Duration`. It will retry after this duration has passed. 
+```scala
+import scala.concurrent.duration.{Duration, DurationInt}
+def atMostOneDay(retryCnt: Int): Duration = {
+    val max: Duration = 24 hours
+    val d: Duration = Retry.exponentialBackoff(retryCnt)
+    if (d < max) d else max
+}
+retry[Unit](
+  maxRetry = 10,
+  backoff = atMostOneDay
+){
+  send(email)
+}
 ```
