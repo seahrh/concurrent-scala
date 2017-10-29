@@ -43,13 +43,22 @@ The backoff function takes a `retryCnt` argument of type `Int` and returns a `sc
 ```scala
 import scala.concurrent.duration.{Duration, DurationInt}
 def atMostOneDay(retryCnt: Int): Duration = {
-    val max: Duration = 24 hours
-    val d: Duration = Retry.exponentialBackoff(retryCnt)
-    if (d < max) d else max
+  val max: Duration = 24 hours
+  val d: Duration = Retry.exponentialBackoff(retryCnt)
+  if (d < max) d else max
 }
 retry[Unit](
   maxRetry = 10,
   backoff = atMostOneDay
+){
+  send(email)
+}
+```
+If you wish to avoid retrying at regular intervals, `exponentialBackoffWithJitter` adds a random delay.
+```scala
+retry[Unit](
+  maxRetry = 10,
+  backoff = Retry.exponentialBackoffWithJitter
 ){
   send(email)
 }
