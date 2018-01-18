@@ -1,6 +1,6 @@
-package com.sgcharts.concurrent.scala
+package com.sgcharts.concurrent.s
 
-import com.sgcharts.concurrent.scala.Retry._
+import com.sgcharts.concurrent.s.Retry._
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito._
 import org.scalatest.FlatSpec

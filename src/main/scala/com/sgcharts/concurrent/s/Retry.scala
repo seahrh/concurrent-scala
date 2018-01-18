@@ -1,4 +1,4 @@
-package com.sgcharts.concurrent.scala
+package com.sgcharts.concurrent.s
 
 import scala.annotation.tailrec
 import scala.concurrent.{Await, ExecutionContext, Future, Promise, blocking}
