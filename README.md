@@ -13,7 +13,14 @@ You *must*
 - Provide an [`ExecutionContext`](https://docs.scala-lang.org/overviews/core/futures.html#execution-context) before calling `Retry`. For example,
 ```scala
 import scala.concurrent.ExecutionContext.Implicits.global
-``` 
+```
+Alternatively, if the task may result in many blocking threads, you can use a different thread pool:
+```scala
+import java.util.concurrent.Executors
+val pool = Executors.newCachedThreadPool()
+implicit val ec = ExecutionContext.fromExecutor(pool)
+```
+Now this pool is used by all futures when `ec` is in scope.
 - Set the maximum number of retries, given in the `maxRetry` argument. A negative number means an unlimited number of retries.
 ### You don't care about the result
 ```scala
